@@ -1,3 +1,5 @@
+<img src="https://github.com/thewolfprod/ChatGPT-Android/blob/master/images/app_icon.png?raw=true" />
+
 # ChatGPT-Android
 Simple GPT chat android application written in Kotlin &amp; Material You
 
