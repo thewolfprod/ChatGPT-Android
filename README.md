@@ -12,6 +12,9 @@ Provide API Key & API Host in strings.xml (Free 50000 / Tokens per month)
 <string name="APIKey">xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</string>
 <string name="APIHost">openai80.p.rapidapi.com</string>
 ```
+__or__
+
+Clone, build app, open and enter API key into dialog box that will show up on startup
 
 ## Screenshots
 <img src="https://github.com/thewolfprod/ChatGPT-Android/blob/master/images/AppChat.png?raw=true" width="270" height="600" />
