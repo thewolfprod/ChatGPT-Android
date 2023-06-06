@@ -3,20 +3,19 @@ package tw.app.chatgpt.api
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import okhttp3.MediaType
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import ru.gildor.coroutines.okhttp.await
+import tw.app.chatgpt.Settings
 import tw.app.chatgpt.api.model.GPTResponse
-import java.lang.Exception
 import java.util.concurrent.TimeUnit
-
 
 class ApiCall(
     private val apiKey: String,
     private val apiHost: String,
+    private val settings: Settings,
     private val listener: OnApiCallResponse
 ) {
     private val client: OkHttpClient
@@ -26,26 +25,24 @@ class ApiCall(
 
     init {
         val builder = OkHttpClient.Builder()
-        builder.connectTimeout(30, TimeUnit.SECONDS);
-        builder.readTimeout(30, TimeUnit.SECONDS);
-        builder.writeTimeout(30, TimeUnit.SECONDS);
+        builder.connectTimeout(30, TimeUnit.SECONDS)
+        builder.readTimeout(30, TimeUnit.SECONDS)
+        builder.writeTimeout(30, TimeUnit.SECONDS)
         client = builder.build();
     }
 
-    public suspend fun Call(question: String) {
+    suspend fun Call(question: String) {
         latestQuestion = question
         var isLastActionSuccessful = true
 
-        val body = RequestBody.create(
-            mediaType,
-            "{\r\n    \"model\": \"gpt-3.5-turbo\",\r\n    \"messages\": [\r\n        {\r\n            \"role\": \"user\",\r\n            \"content\": \"$question\"\r\n        }\r\n    ]\r\n}"
-        )
+        val body = "{\r\n    \"model\": \"gpt-3.5-turbo\",\r\n    \"messages\": [\r\n        {\r\n            \"role\": \"user\",\r\n            \"content\": \"$question\"\r\n        }\r\n    ]\r\n}"
+            .toRequestBody(mediaType)
 
         val request: Request = Request.Builder()
             .url("https://openai80.p.rapidapi.com/chat/completions")
             .post(body)
             .addHeader("content-type", "application/json")
-            .addHeader("X-RapidAPI-Key", apiKey)
+            .addHeader("X-RapidAPI-Key", settings.getApiKey() ?: apiKey)
             .addHeader("X-RapidAPI-Host", apiHost)
             .build()
 
@@ -57,7 +54,7 @@ class ApiCall(
         }
 
         if (isLastActionSuccessful) {
-            var responseString = response.body!!.string()
+            val responseString = response.body!!.string()
             Log.d("ResponseString", "Call: $responseString")
             val gptResponse = Gson().fromJson<GPTResponse>(responseString)
 
@@ -69,7 +66,7 @@ class ApiCall(
         }
     }
 
-    public suspend fun TryCallAgain() {
+    suspend fun TryCallAgain() {
         if (latestQuestion.isNotBlank())
             Call(latestQuestion)
     }

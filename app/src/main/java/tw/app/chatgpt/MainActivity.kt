@@ -1,6 +1,5 @@
 package tw.app.chatgpt
 
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import com.google.android.material.snackbar.Snackbar
 import kotlinx.coroutines.launch
@@ -13,10 +12,17 @@ import tw.app.chatgpt.api.ApiCall
 import tw.app.chatgpt.api.OnApiCallResponse
 import tw.app.chatgpt.api.model.GPTResponse
 import tw.app.chatgpt.databinding.ActivityMainBinding
+import tw.app.chatgpt.dialog.CredentialsDialog
+import tw.app.chatgpt.dialog.CredentialsDialogListener
 import tw.app.chatgpt.R.string as AppString
-import java.lang.Exception
 
 class MainActivity : BaseActivity() {
+
+    private var _credentialsDialog: CredentialsDialog? = null
+    private val credentialsDialog get() = _credentialsDialog!!
+
+    private var _credentialsDialogListener: CredentialsDialogListener? = null
+    private val credentialsDialogListener get() = _credentialsDialogListener!!
 
     private var _binding: ActivityMainBinding? = null
     private val binding get() = _binding!!
@@ -30,15 +36,33 @@ class MainActivity : BaseActivity() {
     private var _adapter: ChatAdapter? = null
     private val adapter get() = _adapter!!
 
+    private var _settings: Settings? = null
+    private val settings get() = _settings!!
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         _binding = ActivityMainBinding.inflate(layoutInflater)
 
-        setContentView(binding.root)
+        _settings = Settings(getSharedPreferences("app_settings", MODE_PRIVATE))
 
-        setup()
-        init()
+        _credentialsDialogListener = object : CredentialsDialogListener {
+            override fun onPositiveButtonClicked(apiKey: String) {
+                settings.setApiKey(apiKey)
+                start()
+            }
+        }
+
+        _credentialsDialog = CredentialsDialog(
+            this@MainActivity,
+            credentialsDialogListener
+        )
+
+        if (settings.getApiKey() == null && getString(AppString.APIKey).isBlank()) {
+            credentialsDialog.show()
+        } else {
+            start()
+        }
     }
 
     override fun onDestroy() {
@@ -50,6 +74,12 @@ class MainActivity : BaseActivity() {
         _apiCallListener = null
     }
 
+    private fun start() {
+        setContentView(binding.root)
+        setup()
+        init()
+    }
+
     private fun setup() {
         _adapter = ChatAdapter(arrayListOf())
         binding.chatRecyclerView.adapter = adapter
@@ -59,6 +89,9 @@ class MainActivity : BaseActivity() {
                 runOnUiThread {
                     binding.userMessageEditText.isEnabled = true
                     binding.sendButton.isEnabled = true
+
+                    if (binding.userMessageEditText.text.isNotBlank())
+                        binding.userMessageEditText.setText("")
 
                     val responseItem = DataType.HorizontalClass(
                         ChatItem(
@@ -81,7 +114,7 @@ class MainActivity : BaseActivity() {
                     val responseItem = DataType.HorizontalClass(
                         ChatItem(
                             senderType = SENDER.ASSISTANT,
-                            message = "Error Occurred!\n${error.message?.toString() ?: "Unknown Error!"}",
+                            message = "Error Occurred!\n${error.message ?: "Unknown Error!"}",
                             sentAt = 0
                         )
                     )
@@ -92,8 +125,9 @@ class MainActivity : BaseActivity() {
         }
 
         _apiCall = ApiCall(
-            apiKey = getString(AppString.APIKey),
+            apiKey = settings.getApiKey()!!,
             apiHost = getString(AppString.APIHost),
+            settings = settings,
             listener = apiCallListener
         )
     }
@@ -101,6 +135,8 @@ class MainActivity : BaseActivity() {
     private fun init() {
         binding.sendButton.setOnClickListener {
             if (binding.userMessageEditText.text.toString().isNotBlank()) {
+                binding.userMessageEditText.isEnabled = false
+                binding.sendButton.isEnabled = false
 
                 val chatItem = DataType.VerticalClass(
                     ChatItem(
@@ -111,9 +147,6 @@ class MainActivity : BaseActivity() {
                 )
 
                 addMessageToRecyclerView(chatItem)
-
-                binding.userMessageEditText.isEnabled = false
-                binding.sendButton.isEnabled = false
 
                 launch {
                     apiCall.Call(binding.userMessageEditText.text.toString())
@@ -129,16 +162,8 @@ class MainActivity : BaseActivity() {
         }
     }
 
-    /**
-     * Adds message to RecyclerView and scrolls to bottom
-     *
-     * Also clears EditText if text is here... bcs why not
-     */
     private fun addMessageToRecyclerView(item: ChatItem) {
         adapter.addMessage(item)
         binding.chatRecyclerView.smoothScrollToPosition(adapter.itemCount - 1)
-
-        if (binding.userMessageEditText.text.isNotBlank())
-            binding.userMessageEditText.setText("")
     }
 }
